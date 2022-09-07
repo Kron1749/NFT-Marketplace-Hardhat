@@ -14,6 +14,8 @@ error NFTMarketplace__PriceNotMet(
     uint256 tokenId,
     uint256 price
 );
+error NFTMarketplace__NoProceeds();
+error NFTMarketplace__TransferFailed();
 
 contract NFTMarketplace is ReentrancyGuard {
     struct Listing {
@@ -33,6 +35,12 @@ contract NFTMarketplace is ReentrancyGuard {
         address indexed nftAddress,
         uint256 indexed tokenId,
         uint256 price
+    );
+
+    event ItemCanceled(
+        address indexed seller,
+        address indexed nftAddress,
+        uint256 indexed tokenId
     );
     //NFT contract => NFT TokenId -> Listing
     mapping(address => mapping(uint256 => Listing)) private s_listings;
@@ -72,6 +80,8 @@ contract NFTMarketplace is ReentrancyGuard {
         }
         _;
     }
+
+    // Main Functions
 
     /*
      * @notice Method to list new NFT
@@ -124,5 +134,53 @@ contract NFTMarketplace is ReentrancyGuard {
             tokenId
         );
         emit ItemBought(msg.sender, nftAddress, tokenId, listedItem.price);
+    }
+
+    function cancelListing(address nftAddress, uint256 tokenId)
+        external
+        isOwner(nftAddress, tokenId, msg.sender)
+        isListed(nftAddress, tokenId)
+    {
+        delete (s_listings[nftAddress][tokenId]);
+        emit ItemCanceled(msg.sender, nftAddress, tokenId);
+    }
+
+    function updateListing(
+        address nftAddress,
+        uint256 tokenId,
+        uint256 newPrice
+    )
+        external
+        isListed(nftAddress, tokenId)
+        isOwner(nftAddress, tokenId, msg.sender)
+    {
+        s_listings[nftAddress][tokenId].price = newPrice;
+        emit ItemListed(msg.sender, nftAddress, tokenId, newPrice);
+    }
+
+    function withdrawProceeds() external {
+        uint256 proceeds = s_proceeds[msg.sender];
+        if (proceeds <= 0) {
+            revert NFTMarketplace__NoProceeds();
+        }
+        s_proceeds[msg.sender] = 0;
+        (bool success, ) = payable(msg.sender).call{value: proceeds}("");
+        if (!success) {
+            revert NFTMarketplace__TransferFailed();
+        }
+    }
+
+    // Getter Functions
+
+    function getListing(address nftAddress, uint256 tokenId)
+        external
+        view
+        returns (Listing memory)
+    {
+        return s_listings[nftAddress][tokenId];
+    }
+
+    function getProceeds(address seller) external view returns (uint256) {
+        return s_proceeds[seller];
     }
 }
