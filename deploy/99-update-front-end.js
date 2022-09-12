@@ -13,11 +13,12 @@ module.exports = async function () {
 }
 
 async function updateAbi() {
-    const NFTMarketplace = await ethers.getContract("NFTMarketplace")
+    const nftMarketplace = await ethers.getContract("NFTMarketplace")
     fs.writeFileSync(
         `${frontEndAbiLocation}NFTMarketplace.json`,
-        NFTMarketplace.interface.format(ethers.utils.FormatTypes.json)
+        nftMarketplace.interface.format(ethers.utils.FormatTypes.json)
     )
+
     const basicNft = await ethers.getContract("BasicNft")
     fs.writeFileSync(
         `${frontEndAbiLocation}BasicNft.json`,
